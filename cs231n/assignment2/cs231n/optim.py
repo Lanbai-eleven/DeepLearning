@@ -108,8 +108,9 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    cache = config['decay_rate'] * config['cache'] + (1 - config['decay_rate']) * (np.square(dw))
+    next_w = w - (config['learning_rate']/(np.sqrt(cache)+config["epsilon"]))*dw
+    config["cache"] = cache
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -152,9 +153,16 @@ def adam(w, dw, config=None):
     # using it in any calculations.                                           #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    t = config["t"]
+    t += 1
+    m = config['beta1'] * config['m'] + (1 - config['beta1']) * dw
+    v = config['beta2'] * config['v'] + (1 - config['beta2']) * (dw**2)
+    mt = m / (1 - config['beta1']**t)
+    vt = v / (1 - config['beta2']**t)
+    next_w = w - (config['learning_rate'] * mt) / (np.sqrt(vt) + config['epsilon'])
+    config['m'] = m
+    config['v'] = v
+    config['t'] = t
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
