@@ -79,7 +79,7 @@ class FullyConnectedNet(object):
             self.params["w"+str(i+1)] = np.random.normal(loc=0, scale=weight_scale, size=(dims_list[i], dims_list[i+1]))
             self.params["b"+str(i+1)] = np.zeros((dims_list[i+1],))
         
-        if self.normalization == "batchnorm":
+        if self.normalization != None:
             for i in range(self.num_layers-1):
                 self.params['gamma'+str(i+1)] = np.ones(dims_list[i+1])
                 self.params['beta'+str(i+1)] = np.zeros(dims_list[i+1])
@@ -180,6 +180,17 @@ class FullyConnectedNet(object):
 
                 affine_in, affine_bn_relu_cache = affine_bn_relu_forward(affine_in, w, b, gamma, beta, bn_param)
                 cache['affine_bn_relu_cache'+str(i)] = affine_bn_relu_cache
+        #前n-1层的前向 层归一化
+        elif self.normalization == 'layernorm':
+            for i in range(1,self.num_layers):
+                w = self.params['w'+str(i)]
+                b = self.params['b'+str(i)]
+                gamma = self.params["gamma"+str(i)]
+                beta = self.params["beta"+str(i)]
+                ln_param=self.bn_params[i-1]
+
+                affine_in, affine_ln_relu_cache = affine_ln_relu_forward(affine_in, w, b, gamma, beta, ln_param)
+                cache['affine_ln_relu_cache'+str(i)] = affine_ln_relu_cache
 
         #最后一层的前向都相同
         w = self.params['w'+str(self.num_layers)]
@@ -246,6 +257,16 @@ class FullyConnectedNet(object):
                 w = self.params['w'+str(i)]
                 affine_bn_relu_cache = cache['affine_bn_relu_cache'+str(i)]
                 dout,dw,db,dgamma,dbeta = affine_bn_relu_backward(dout, affine_bn_relu_cache)
+                dw += self.reg*w
+                grads['w'+str(i)]=dw
+                grads['b'+str(i)]=db
+                grads['gamma'+str(i)] = dgamma
+                grads['beta'+str(i)] = dbeta
+        elif self.normalization == 'layernorm':
+            for i in range(self.num_layers-1,0,-1):
+                w = self.params['w'+str(i)]
+                affine_ln_relu_cache = cache['affine_ln_relu_cache'+str(i)]
+                dout,dw,db,dgamma,dbeta = affine_ln_relu_backward(dout, affine_ln_relu_cache)
                 dw += self.reg*w
                 grads['w'+str(i)]=dw
                 grads['b'+str(i)]=db

@@ -373,9 +373,11 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    x_mean = np.mean(x, axis=1, keepdims=True)
+    x_var = np.var(x-x_mean, axis=1, keepdims=True)
+    x_norm = (x-x_mean)/(np.sqrt(x_var+eps))
+    out = gamma*x_norm + beta
+    cache = (x, x_mean, x_var, x_norm, gamma, eps)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -407,9 +409,15 @@ def layernorm_backward(dout, cache):
     # still apply!                                                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    x, x_mean, x_var, x_norm, gamma, eps = cache
+    D = 1.0 * x.shape[1]
+    dldx_norm = dout * gamma
+    dldvar = np.sum(-0.5 * dldx_norm * (x - x_mean) * ((x_var + eps)**-1.5),
+                    axis=1,keepdims=True)
+    dldu = np.sum(-dldx_norm / np.sqrt(x_var + eps), axis=1, keepdims=True)
+    dx = dldx_norm/np.sqrt(x_var+eps)+dldu.reshape(-1, 1) / D+dldvar.reshape(-1, 1)*2/D*(x-x_mean)
+    dgamma = np.sum(dout * x_norm, axis=0)  # 注意这个 *gamma 不是点乘
+    dbeta = np.sum(dout, axis=0)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
