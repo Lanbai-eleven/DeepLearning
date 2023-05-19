@@ -8,16 +8,17 @@ namespace py = pybind11;
 float* matrix_dot(const float *A, const float *B, size_t index, size_t m, 
                 size_t n, size_t k, bool transpose_A=false)
 {
-    float *result = new float[m*k];
-    for(size_t i=0; i<m; i++){
+    size_t cur_m = (transpose_A? n:m);
+    size_t cur_n = (transpose_A? m:n);
+    float *result = new float[cur_m*k];
+    for(size_t i=0; i<cur_m; i++){
         for(size_t j=0; j<k; j++){
             result[i*k+j] = 0;
-            for(size_t l=0; l<transpose_A? m:n; l++){
-                if(transpose_A){
-                    result[i*k+j] += A[(index+i)*n+l] * B[l*k+j];
-                }else{
-                    result[i*k+j] += A[l*n+(index+i)] * B[l*k+j];
-                }
+            for(size_t l=0; l<cur_n; l++){
+                if(transpose_A)
+                    result[i*k+j] += A[index*n+l*n+i] * B[l*k+j];
+                else
+                    result[i*k+j] += A[index*n+i*n+l] * B[l*k+j];
             }
         }
     }
@@ -68,27 +69,21 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
     //batch
     for(size_t index=0; index<m; index+=batch){
         //logits
-        auto logits = matrix_dot(X, theta, index, batch, n, k);
+        float *logits = matrix_dot(X, theta, index, batch, n, k);
         //softmax
-        auto softmax_result = softmax(logits, batch, k);
+        float *softmax_result = softmax(logits, batch, k);
         //gradient
-        for(size_t i=0; i<batch; i++){
-            for(size_t j=0; j<k; j++){
-                if(j == y[index+i]){
-                    softmax_result[i*k+j] -= 1;
-                }
-            }
-        }
+        for(size_t i = 0; i < batch; i++) {
+            softmax_result[i*k + (uint8_t)y[i+index]] -= 1.0;
+    }
         auto gradient = matrix_dot(X, softmax_result, index, batch, n, k, true);
         //update
-        for(size_t i=0; i<batch; i++){
-            for(size_t j=0; j<n; j++){
-                for(size_t l=0; l<k; l++){
-                    theta[j*k+l] -= lr * gradient[i*n+l];
-                }
+        for(size_t i=0; i<n; i++){
+            for(size_t j=0; j<k; j++){
+                theta[i*k+j] -= lr * gradient[i*k+j]/((m-index)<batch? m-index:batch);
             }
         }
-        //delete
+        // //delete
         delete[] logits;
         delete[] softmax_result;
         delete[] gradient;
