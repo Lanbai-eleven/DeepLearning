@@ -109,9 +109,9 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
     Returns:
         None
     """
-    batch_num = X.shape[0]
+    total_num = X.shape[0]
 
-    for i in range(0, batch_num, batch):
+    for i in range(0, total_num, batch):
         X_batch = X[i:i+batch]
         y_batch = y[i:i+batch]
 
@@ -119,7 +119,7 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         #softmax
         pred_softmax = softmax(pred)
         pred_softmax[np.arange(batch), y_batch] -= 1
-        grad = X_batch.T.dot(pred_softmax)/batch
+        grad = X_batch.T.dot(pred_softmax)/len(X_batch)
 
         print("grad shape: ", grad.shape)
         print("theta shape: ", theta.shape)
@@ -150,9 +150,33 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
     Returns:
         None
     """
-    ### BEGIN YOUR CODE
-    pass
-    ### END YOUR CODE
+    total_num = X.shape[0]
+
+    for i in range(0, total_num, batch):
+        X_batch = X[i:i+batch]
+        y_batch = y[i:i+batch]
+
+        #forward
+        output = np.maximum(X_batch.dot(W1), 0)
+        logits = output.dot(W2)
+
+        #softmax
+        logits_softmax = softmax(logits)
+        logits_softmax[np.arange(len(y_batch)), y_batch] -= 1
+        logits_softmax /= len(y_batch)
+        
+        grad_W2 = output.T.dot(logits_softmax)
+        grad_output = logits_softmax.dot(W2.T)
+        grad_output[output<=0] = 0
+        grad_W1 = X_batch.T.dot(grad_output)
+
+        # print("W1:", W1)
+        # print("grad_W1:", grad_W1)
+        # print("W2:", W2)
+        # print("grad_W2:", grad_W2)
+
+        W1 -= lr*grad_W1
+        W2 -= lr*grad_W2     
 
 
 

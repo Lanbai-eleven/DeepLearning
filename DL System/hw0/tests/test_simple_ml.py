@@ -130,6 +130,8 @@ def test_nn_epoch():
         softmax_loss(np.maximum(X@W1,0)@W2_.reshape(10,3), y))(W2)
     W1_0, W2_0 = W1.copy(), W2.copy()
     nn_epoch(X, y, W1, W2, lr=1.0, batch=50)
+    print("dw1:",dW1)
+    print("dw2:",dW2)
     np.testing.assert_allclose(dW1.reshape(5,10), W1_0-W1, rtol=1e-4, atol=1e-4)
     np.testing.assert_allclose(dW2.reshape(10,3), W2_0-W2, rtol=1e-4, atol=1e-4)
 

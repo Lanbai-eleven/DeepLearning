@@ -5,6 +5,40 @@
 
 namespace py = pybind11;
 
+float* matrix_dot(const float *A, const float *B, size_t index, size_t m, 
+                size_t n, size_t k, bool transpose_A=false)
+{
+    float *result = new float[m*k];
+    for(size_t i=0; i<m; i++){
+        for(size_t j=0; j<k; j++){
+            result[i*k+j] = 0;
+            for(size_t l=0; l<transpose_A? m:n; l++){
+                if(transpose_A){
+                    result[i*k+j] += A[(index+i)*n+l] * B[l*k+j];
+                }else{
+                    result[i*k+j] += A[l*n+(index+i)] * B[l*k+j];
+                }
+            }
+        }
+    }
+    return result;
+}
+
+float* softmax(const float *logits, size_t m, size_t k)
+{
+    float *result = new float[m*k];
+    for(size_t i=0; i<m; i++){
+        float sum = 0;
+        for(size_t j=0; j<k; j++){
+            result[i*k+j] = exp(logits[i*k+j]);
+            sum += result[i*k+j];
+        }
+        for(size_t j=0; j<k; j++){
+            result[i*k+j] /= sum;
+        }
+    }
+    return result;
+}
 
 void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
 								  float *theta, size_t m, size_t n, size_t k,
@@ -31,10 +65,35 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      * Returns:
      *     (None)
      */
+    //batch
+    for(size_t index=0; index<m; index+=batch){
+        //logits
+        auto logits = matrix_dot(X, theta, index, batch, n, k);
+        //softmax
+        auto softmax_result = softmax(logits, batch, k);
+        //gradient
+        for(size_t i=0; i<batch; i++){
+            for(size_t j=0; j<k; j++){
+                if(j == y[index+i]){
+                    softmax_result[i*k+j] -= 1;
+                }
+            }
+        }
+        auto gradient = matrix_dot(X, softmax_result, index, batch, n, k, true);
+        //update
+        for(size_t i=0; i<batch; i++){
+            for(size_t j=0; j<n; j++){
+                for(size_t l=0; l<k; l++){
+                    theta[j*k+l] -= lr * gradient[i*n+l];
+                }
+            }
+        }
+        //delete
+        delete[] logits;
+        delete[] softmax_result;
+        delete[] gradient;
+    }
 
-    /// BEGIN YOUR CODE
-
-    /// END YOUR CODE
 }
 
 
