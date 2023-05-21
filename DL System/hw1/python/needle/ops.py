@@ -162,13 +162,10 @@ class BroadcastTo(TensorOp):
         # c = 1
         reduce_dim = [] if len(self.shape) == len(input_shape) \
                         else [i for i in range(len(self.shape)-len(input.shape))]
-        # for i in range(len(self.shape)-len(input.shape)):
-        #     c *= self.shape[i]
         for idx, (broadcast_dim, input_dim) \
             in enumerate(zip(reversed(self.shape), reversed(input_shape))):
             if broadcast_dim != input_dim:
                 reduce_dim.append(len(self.shape) - idx - 1)
-                # c *= input_shape[idx]
         
         return reshape(summation(out_grad, axes=tuple(reduce_dim)), input_shape)
 
@@ -231,14 +228,10 @@ def negate(a):
 
 class Log(TensorOp):
     def compute(self, a):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return array_api.log(a)
 
     def gradient(self, out_grad, node):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return divide(out_grad, node.inputs[0])
 
 
 def log(a):
@@ -247,14 +240,10 @@ def log(a):
 
 class Exp(TensorOp):
     def compute(self, a):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return array_api.exp(a)
 
     def gradient(self, out_grad, node):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return multiply(out_grad, exp(node.inputs[0]))
 
 
 def exp(a):
@@ -264,14 +253,12 @@ def exp(a):
 # TODO
 class ReLU(TensorOp):
     def compute(self, a):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return array_api.maximum(a, 0)
 
     def gradient(self, out_grad, node):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        input, = node.inputs
+        input_relu = relu(input).numpy()
+        return out_grad * Tensor(input_relu > 0)
 
 
 def relu(a):

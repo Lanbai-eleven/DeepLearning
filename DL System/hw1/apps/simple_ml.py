@@ -29,9 +29,21 @@ def parse_mnist(image_filesname, label_filename):
                 labels of the examples.  Values should be of type np.int8 and
                 for MNIST will contain the values 0-9.
     """
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    import gzip
+    import struct
+    with gzip.open(image_filesname, "rb") as f:
+        magic_num, nums, rows, cols = struct.unpack('>IIII', f.read(16))
+        images = np.frombuffer(f.read(), dtype=np.uint8) \
+            .reshape(nums, rows * cols).astype(np.float32)
+        image_max = np.max(images)
+        image_min = np.min(images)
+        images = (images-image_min)/(image_max-image_min)
+    
+    with gzip.open(label_filename, "rb") as f:
+        magic_num, nums = struct.unpack('>II', f.read(8))
+        labels = np.frombuffer(f.read(), dtype=np.uint8)
+    
+    return (images, labels)
 
 
 def softmax_loss(Z, y_one_hot):
@@ -50,9 +62,9 @@ def softmax_loss(Z, y_one_hot):
     Returns:
         Average softmax loss over the sample. (ndl.Tensor[np.float32])
     """
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    Z1 = ndl.ops.summation(ndl.ops.log(ndl.ops.summation(ndl.ops.exp(Z), axes=(1, ))))
+    Z2 = ndl.ops.summation(Z * y_one_hot)
+    return (Z1 - Z2) / Z.shape[0]
 
 
 def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
@@ -78,10 +90,31 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
             W1: ndl.Tensor[np.float32]
             W2: ndl.Tensor[np.float32]
     """
+    total_num = X.shape[0]
 
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    for i in range(0, total_num, batch):
+        X_batch = X[i:i+batch]
+        y_batch = y[i:i+batch]
+        #set train data and label
+        X_batch = ndl.Tensor(X_batch)
+        y_one_hot_batch = np.zeros((y_batch.shape[0], W2.shape[-1]))
+        y_one_hot_batch[np.arange(y_batch.shape[0]), y_batch] = 1
+        y_one_hot_batch = ndl.Tensor(y_one_hot_batch)
+
+        #forward
+        Z = ndl.ops.matmul(ndl.ops.relu(ndl.ops.matmul(X_batch, W1)), W2)
+
+        #loss
+        loss = softmax_loss(Z, y_one_hot_batch)
+
+        #backward
+        loss.backward()
+
+        #update
+        W1 = ndl.Tensor(W1.numpy() - lr * W1.grad.numpy())
+        W2 = ndl.Tensor(W2.numpy() - lr * W2.grad.numpy())
+
+    return W1, W2
 
 
 ### CODE BELOW IS FOR ILLUSTRATION, YOU DO NOT NEED TO EDIT
