@@ -121,14 +121,12 @@ class Transpose(TensorOp):
         self.axes = axes
 
     def compute(self, a):
-        if self.axes:
-            return array_api.swapaxes(a, (self.axes))
-        else:
-            return array_api.swapaxes(a, -1, -2)
+        x, y = self.axes if self.axes else (-1, -2)
+        return array_api.swapaxes(a, x, y)
 
     def gradient(self, out_grad, node):
         cur_axes = self.axes if self.axes else (-1, -2)
-        return transpose(out_grad, cur_axes)
+        return transpose(out_grad, axes=cur_axes)
 
 
 def transpose(a, axes=None):
@@ -161,8 +159,14 @@ class BroadcastTo(TensorOp):
     def gradient(self, out_grad, node):
         input, = node.inputs
         input_shape = input.shape
+        reduce_dim = [] if len(self.shape) == len(input_shape) \
+                        else [i for i in range(len(self.shape)-len(obj.shape))]
+        for idx, (broadcast_dim, input_dim) \
+            in enumerate(zip(reversed(self.shape), reversed(input_shape))):
+            if broadcast_dim != input_dim:
+                reduce_dim.append(len(self.shape) - idx - 1)
         
-
+        return reshape(summation(out_grad, axes=tuple(reduce_dim)), input_shape)
 
 
 def broadcast_to(a, shape):
@@ -180,9 +184,9 @@ class Summation(TensorOp):
         input, = node.inputs
         broadcast_shape = [(1 if i in self.axes else s) for i, s in enumerate(input.shape)] \
          if self.axes else [1] * len(input.shape)
-        
+
         out_grad = reshape(out_grad, broadcast_shape)
-        
+        return broadcast_to(out_grad, input.shape)
 
 
 
@@ -193,15 +197,17 @@ def summation(a, axes=None):
 
 class MatMul(TensorOp):
     def compute(self, a, b):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return array_api.matmul(a, b)
 
     def gradient(self, out_grad, node):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
-
+        lhs, rhs = node.inputs
+        lhs_grad = matmul(out_grad, transpose(rhs))
+        rhs_grad = matmul(transpose(lhs), out_grad)
+        if lhs_grad.shape != lhs.shape: 
+            lhs_grad = summation(lhs_grad, axes=tuple(range(len(lhs_grad.shape) - 2)))
+        if rhs_grad.shape != rhs.shape: 
+            rhs_grad = summation(rhs_grad, axes=tuple(range(len(rhs_grad.shape) - 2)))
+        return lhs_tmp_grad, rhs_grad
 
 def matmul(a, b):
     return MatMul()(a, b)
@@ -209,14 +215,10 @@ def matmul(a, b):
 
 class Negate(TensorOp):
     def compute(self, a):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return -a
 
     def gradient(self, out_grad, node):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return -out_grad
 
 
 def negate(a):
