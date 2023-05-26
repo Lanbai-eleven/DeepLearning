@@ -23,10 +23,9 @@ class RandomFlipHorizontal(Transform):
         Note: use the provided code to provide randomness, for easier testing
         """
         flip_img = np.random.rand() < self.p
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
-
+        if flip_img:
+            img = img[:, ::-1, :]
+        return img
 
 class RandomCrop(Transform):
     def __init__(self, padding=3):
@@ -41,9 +40,10 @@ class RandomCrop(Transform):
         Note: generate the image shifted by shift_x, shift_y specified below
         """
         shift_x, shift_y = np.random.randint(low=-self.padding, high=self.padding+1, size=2)
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        img = np.pad(img, ((self.padding, self.padding), (self.padding, self.padding), (0, 0)), mode='constant')
+        img = img[self.padding+shift_x:self.padding+shift_x+img.shape[0]-2*self.padding,\
+            self.padding+shift_y:self.padding+shift_y+img.shape[1]-2*self.padding,:]
+        return img
 
 
 class Dataset:
@@ -100,15 +100,20 @@ class DataLoader:
                                            range(batch_size, len(dataset), batch_size))
 
     def __iter__(self):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        self.index = 0
+        if self.shuffle:
+            indexes = np.arange(len(self.dataset))
+            np.random.shuffle(indexes)
+            self.ordering = np.array_split(indexes, 
+                                           range(self.batch_size, len(self.dataset), self.batch_size))
         return self
 
     def __next__(self):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        if self.index == len(self.ordering):
+            raise StopIteration()
+        samples = [Tensor(x) for x in self.dataset[self.ordering[self.index]]]
+        self.index += 1
+        return samples
 
 
 class MNISTDataset(Dataset):
@@ -118,19 +123,41 @@ class MNISTDataset(Dataset):
         label_filename: str,
         transforms: Optional[List] = None,
     ):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        super().__init__(transforms)
+        self.images, self.labels = self.parse_mnist(image_filename, label_filename)
+
+    def parse_mnist(self,   image_filesname, label_filename):
+
+        import gzip
+        import struct
+        with gzip.open(image_filesname, "rb") as f:
+            magic_num, nums, rows, cols = struct.unpack('>IIII', f.read(16))
+            images = np.frombuffer(f.read(), dtype=np.uint8) \
+                .reshape(nums, rows * cols).astype(np.float32)
+            image_max = np.max(images)
+            image_min = np.min(images)
+            images = (images-image_min)/(image_max-image_min)
+        
+        with gzip.open(label_filename, "rb") as f:
+            magic_num, nums = struct.unpack('>II', f.read(8))
+            labels = np.frombuffer(f.read(), dtype=np.uint8)
+        
+        images = images.astype(np.float32)
+        images = images.reshape((-1, 28, 28, 1))
+
+        return (images, labels)
 
     def __getitem__(self, index) -> object:
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        image, label = self.images[index], self.labels[index]
+        # if self.transforms:
+        #     for transform in self.transforms:
+        #         image = transform(image)
+        image = self.apply_transforms(image)
+
+        return image, label
 
     def __len__(self) -> int:
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        return self.images.shape[0]
 
 class NDArrayDataset(Dataset):
     def __init__(self, *arrays):
